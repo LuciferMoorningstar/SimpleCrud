@@ -31,6 +31,7 @@ const AuthController = {
             let email = req.body.email.toLowerCase();
             let password = req.body.password;
             let user = await Users.findOne({email:email});
+            if(!user) res.status(401).send({ message: "Unauthorise User"});
             let valid = await bcrypt.compare(password, user['password']);
             if(valid){
                 delete user['_doc']['password'];
@@ -57,13 +58,32 @@ const AuthController = {
         });
     },
 
+checkAuthUser(token){
+        if (!token) return res.status(401).send({ message: 'Token Required.' });
+        jwt.verify(token, secret, async function(err, decoded) {
+            if (err) return res.status(406).send({ message: 'Invalid Token.' });
+            let user = await Users.findById(decoded['id'])
+            if(!user) res.status(401).send({ message: "Unauthorise User"});
+            return {status: true, id:user['_id']};
+        });
+    },
+    
     async updateProfile(req, res){
         try{
             let updateObject = {};
-            let result = await this.checkAuthUser(req.headers['authorization']);
-            const data = await Users.findById(result['id']) 
+            let result = {};
+            let token = req.headers['authorization'];
+            //let result = await this.checkAuthUser(req.headers['authorization']);
+            if (!token) return res.status(401).send({ message: 'Token Required.' });
+		jwt.verify(token, secret, async function(err, decoded) {
+		    if (err) return res.status(406).send({ message: 'Invalid Token.' });
+		    let user = await Users.findById(decoded['id'])
+		    if(!user) res.status(401).send({ message: "Unauthorise User"});
+            result = {status: true, id:user['_id']};
+            });
+            const data = await Users.findById(result['id'])
             if(req.body.email){
-                let checkMailExists = await Users.find({email:req.body.email.toLowerCase()});
+                let checkMailExists = await Users.findOne({email:req.body.email.toLowerCase()});
                 if(checkMailExists && result['id'].toString() != checkMailExists['_doc']['_id'].toString()){
                     res.status(406).send({ message: "Email Already Exists"});
                 }
@@ -81,19 +101,11 @@ const AuthController = {
                const _data = await Users.updateOne({_id:result['id']},{$set:{...updateObject}})
                res.status(200).send({message:"Profile Updated Successfully",data:_data['_doc']});   
             }catch(err){
+            console.log("Error",err)
                 res.send('Error')
             }
         },
     
-    async checkAuthUser(token){
-        if (!token) return res.status(401).send({ message: 'Token Required.' });
-        jwt.verify(token, secret, async function(err, decoded) {
-            if (err) return res.status(406).send({ message: 'Invalid Token.' });
-            let user = await Users.findById(decoded['id'])
-            if(!user) res.status(401).send({ message: "Unauthorise User"});
-            return {status: true, id:user['_id']};
-        });
-    }
 };
 
 module.exports = AuthController;

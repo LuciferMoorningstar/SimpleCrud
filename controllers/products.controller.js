@@ -5,7 +5,7 @@ const ProductController = {
     async index (req, res) {
         try{
             const data = await Products.find()
-             res.status(200).send({ message: "Product Retrived Successfully", data: data['_doc'] });
+             res.status(200).send({ message: "Product Retrived Successfully", data: data});
         }catch(err){
             res.send('Error ' + err)
         }
@@ -24,9 +24,9 @@ const ProductController = {
         const validationRule = {
             "name": "required|string",
             "type": "required|string",
-            "size": "required|string",
+            "size": "required|integer",
             "color": "required|string",
-            "quantity": "required|number",
+            "quantity": "required|string",
         }
         validator(req.body, validationRule, {}, (err, status) => {
             if (!status) {
@@ -36,8 +36,6 @@ const ProductController = {
                         message: 'Errors',
                         data: err
                     });
-            } else {
-                next();
             }
         });
 
@@ -56,11 +54,12 @@ const ProductController = {
             }
         }
         
-        const data = new Products()
+        const data = new Products(newObject)
         try{
             const _data =  await data.save() 
             res.status(200).send({ message: "Product Created Successfully", data: data });
         }catch(err){
+        	console.log("Error",err)
             res.send('Error')
         }
     },
@@ -70,9 +69,9 @@ const ProductController = {
         const validationRule = {
             "name": "required|string",
             "type": "required|string",
-            "size": "required|string",
+            "size": "required|integer",
             "color": "required|string",
-            "quantity": "required|number",
+            "quantity": "required|string",
         }
         validator(req.body, validationRule, {}, (err, status) => {
             if (!status) {
@@ -82,16 +81,28 @@ const ProductController = {
                         message: 'Errors',
                         data: err
                     });
-            } else {
-                next();
             }
         });
 
         try{
-            const data = await Products.findById(req.params.id) 
-            data.sub = req.body.sub
-            const _data = await data.save()
-            res.status(200).send({ message: "Product Updated Successfully", data: data['_doc'] });
+		newObject = {
+		    name: req.body.name,
+		    type: req.body.type,
+		    size: req.body.size,
+		    quantity: req.body.quantity,
+		    color: req.body.color
+		}
+		if(req.body.images && req.body.images.length > 0){
+		    newObject = {
+		        ...newObject,
+		        images:req.body.images
+		    }
+		}
+            const data = await Products.updateOne({_id:req.params.id},{$set:newObject});
+            
+            //const _data = await data.save()
+            const data_ = await Products.findById(req.params.id) 
+            res.status(200).send({ message: "Product Updated Successfully", data: data_['_doc'] });
         }catch(err){
             res.send('Error')
         }
@@ -100,7 +111,7 @@ const ProductController = {
     async addProductImage(req, res){
 
         const validationRule = {
-            "images": "required|string",
+            "image": "required|string",
         }
         validator(req.body, validationRule, {}, (err, status) => {
             if (!status) {
@@ -110,8 +121,6 @@ const ProductController = {
                         message: 'Errors',
                         data: err
                     });
-            } else {
-                next();
             }
         });
 
@@ -125,7 +134,7 @@ const ProductController = {
 
     async removeProductImage(req, res){
         const validationRule = {
-            "images": "required|string",
+            "image": "required|string",
         }
         validator(req.body, validationRule, {}, (err, status) => {
             if (!status) {
@@ -135,8 +144,6 @@ const ProductController = {
                         message: 'Errors',
                         data: err
                     });
-            } else {
-                next();
             }
         });
         try{
@@ -149,9 +156,10 @@ const ProductController = {
 
     async remove(req, res){
         try{
-            await Products.deleteOne(req.params.id)
+            await Products.deleteOne({_id:req.params.id})
             res.status(200).send({ message: "Product Removed Successfully", data: req.params.id }); 
         }catch(err){
+        	console.log("err",err)
             res.send('Error')
         }
     }
